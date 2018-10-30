@@ -13,7 +13,6 @@ LazyData: true
 Suggests: 
   testthat
 Imports: 
-  rgdal (== 1.2-20),
   raster,
   sf,
   sp,
