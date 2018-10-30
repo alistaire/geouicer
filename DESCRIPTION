@@ -1,0 +1,12 @@
+Package: burnbuffer
+Title: What the Package Does (One Line, Title Case)
+Version: 0.0.0.9000
+Authors@R: 
+    person(given = "Alistair",
+           family = "Edwardes",
+           role = c("aut", "cre"),
+           email = "alistair.edwardes@ons.gov.uk")
+Description: Contains various functions to provide buffering and raster processing through algorithmia in relation to SDG indicator 9.1.1
+License: What license it uses
+Encoding: UTF-8
+LazyData: true
