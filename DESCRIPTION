@@ -1,5 +1,5 @@
-Package: burnbuffer
-Title: What the Package Does (One Line, Title Case)
+Package: geouicer
+Title: Contains geospatial algorithms for use on Algorithmia
 Version: 0.0.0.9000
 Authors@R: 
     person(given = "Alistair",
@@ -10,3 +10,15 @@ Description: Contains various functions to provide buffering and raster processi
 License: What license it uses
 Encoding: UTF-8
 LazyData: true
+Suggests: 
+  testthat
+Imports: 
+  raster,
+  rgdal,
+  sf,
+  sp,
+  geojsonsf,
+  jsonlite,
+  dplyr,
+  aws.s3
+    

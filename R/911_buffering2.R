@@ -1,11 +1,11 @@
-library(raster)
-library(rgdal)
-library(sf)
-library(sp)
-library(tidyverse)
-library(geojsonsf)
-library(jsonlite)
-library(aws.s3)
+#library(raster)
+#library(rgdal)
+#library(sf)
+#library(sp)
+#library(dplyr)
+#library(geojsonsf)
+#library(jsonlite)
+#library(aws.s3)
 
 RADIUS_OF_EARTH  = 6378137
 
@@ -108,8 +108,8 @@ buffer_defn <- function(tile.defn, buff=2000){
 #' @param lat latitutde coordinate in WGS84 in degrees
 #' @return EPSG code of UTM zone
 lonlat2UTM = function(lon, lat) {
-  utm = (floor((lonlat[1] + 180) / 6) %% 60) + 1
-  if(lonlat[2] > 0) {
+  utm = (floor((lon + 180) / 6) %% 60) + 1
+  if(lat > 0) {
     utm + 32600
   } else{
     utm + 32700
@@ -138,8 +138,8 @@ tile_bbox <- function(lon, lat, ref="30 min") {
     TRUE ~ 0 #trap this
   )
 
-  xl = floor(tile_cent[1]*part)/part
-  yl = floor(tile_cent[2]*part)/part
+  xl = floor(lon*part)/part
+  yl = floor(lat*part)/part
   xu = xl+1./part
   yu = yl+1./part
   return( c(xl,yl,xu,yu))
@@ -185,21 +185,28 @@ buffer_and_burn <- function(params.json){
   roads <- geojsonsf::geojson_sf(params.df$geom)
   results_bucket <- params.df$bucket #use 'bnb-output' for my aws bucket
 
-  #calculate number of steps for incremental buffering
-  steps <- buffersteps(10,2000,5)
-
-  #----- run the buffering and rasterisation
-  buff_raster <- calculate_buffer_and_burn(roads, centre_tile, steps)
-
-  #----- write the output to an aws bucket
+  #----- check the tile doesn't already exist
+  tbox <- geouicer::tile_bbox(centre_tile[1],centre_tile[2])
+  fname <- paste(sub("\\.","_",tbox[1]), "_", sub("\\.","_",tbox[2]), ".tif", sep="")
   b<- aws.s3::get_bucket(bucket=results_bucket)
+  
+  if (!(result <- aws.s3::head_object(fname, b)[1])) {
+  
+    #calculate number of steps for incremental buffering
+    steps <- geouicer::buffersteps(10,2000,5)
+  
+    #----- run the buffering and rasterisation
+    buff_raster <- geouicer::calculate_buffer_and_burn(roads, centre_tile, steps)
+  
+    #----- write the output to an aws bucket
 
-  #filename is the lower left lon lat of the tile with decimal points replaced with _ and hyphen separated
-  tbox <- tile_bbox(centre_tile[1],centre_tile[2])
-  fname <- paste(sub("\\.","_",tbox["xl"]),sub("\\.","_",tbox["yl"]), sep="-")
-
-  result <- aws.s3::s3write_using(buff_raster, writeRaster, object=fname, format="GTiff",overwrite=T, bucket = b )
-
+    #filename is the lower left lon lat of the tile with decimal points replaced with _ and hyphen separated
+    tbox <- geouicer::tile_bbox(centre_tile[1],centre_tile[2])
+    fname <- paste(sub("\\.","_",tbox[1]), "_", sub("\\.","_",tbox[2]), ".tif", sep="")
+  
+    result <- aws.s3::s3write_using(buff_raster, raster::writeRaster, object=fname, format="GTiff",overwrite=T, bucket=b)
+  }
+  
   return (result)
 }
 
@@ -225,7 +232,7 @@ calculate_buffer_and_burn <- function(roads, centre_tile, buff_steps){
 
   #Need to project to a planar coordinate system to buffer by a given distance
   #using UTM, could also have used azimuthal equidistant projection centered on centre_tile
-  UTM_EPSG = lonlat2UTM(centre_tile[1], centre_tile[2])
+  UTM_EPSG = geouicer::lonlat2UTM(centre_tile[1], centre_tile[2])
   rd_multilinestring = sf::st_transform(rd_multilinestring, UTM_EPSG)
 
   #using a chain of buffers is much faster than buffering straight to 2000m
@@ -242,7 +249,7 @@ calculate_buffer_and_burn <- function(roads, centre_tile, buff_steps){
 
   #create a new raster to burn to, initiate with value of 1 everywhere since this will be a mask
   #takes the dimensions of the regular grid cell containing center_tile
-  raster_bbox = tile_bbox(centre_tile[1], centre_tile[2])
+  raster_bbox = geouicer::tile_bbox(centre_tile[1], centre_tile[2])
   buff_raster = raster::raster( nrows=60, ncols=60,
                                 xmn=raster_bbox[1], ymn=raster_bbox[2],
                                 xmx=raster_bbox[3], ymx=raster_bbox[4],
@@ -254,5 +261,3 @@ calculate_buffer_and_burn <- function(roads, centre_tile, buff_steps){
   r <- raster::rasterize(as(buff_mls, "Spatial"), buff_raster, fun="max", mask=T)
   return(r)
 }
-
-
