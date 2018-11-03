@@ -184,10 +184,16 @@ buffer_and_burn <- function(params.json){
   centre_tile <- c(params.df$clon, params.df$clat)
   roads <- geojsonsf::geojson_sf(params.df$geom)
   results_bucket <- params.df$bucket #use 'bnb-output' for my aws bucket
+  key1 <- params.df$aws_key
+  key2 <- parmas.df$aws_secret
 
+  Sys.setenv("AWS_ACCESS_KEY_ID" = key1,
+             "AWS_SECRET_ACCESS_KEY" = key2)
+  
   #----- check the tile doesn't already exist
   tbox <- geouicer::tile_bbox(centre_tile[1],centre_tile[2])
-  fname <- paste(sub("\\.","_",tbox[1]), "_", sub("\\.","_",tbox[2]), ".tif", sep="")
+  fname <- paste("geojson/", sub("\\.","_",tbox[1]), "_", sub("\\.","_",tbox[2]), ".tif", sep="")
+  
   b<- aws.s3::get_bucket(bucket=results_bucket)
   
   if (!(result <- aws.s3::head_object(fname, b)[1])) {
@@ -201,9 +207,6 @@ buffer_and_burn <- function(params.json){
     #----- write the output to an aws bucket
 
     #filename is the lower left lon lat of the tile with decimal points replaced with _ and hyphen separated
-    tbox <- geouicer::tile_bbox(centre_tile[1],centre_tile[2])
-    fname <- paste(sub("\\.","_",tbox[1]), "_", sub("\\.","_",tbox[2]), ".tif", sep="")
-  
     result <- aws.s3::s3write_using(buff_raster, raster::writeRaster, object=fname, format="GTiff",overwrite=T, bucket=b)
   }
   
